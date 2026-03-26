@@ -23,7 +23,7 @@ export function useAnalysisHistory() {
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("analysis_history")
+      .from("analysis_history" as any)
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
@@ -51,7 +51,7 @@ export function useAnalysisHistory() {
     videoName: string,
     thumbnail?: string
   ) => {
-    const { error } = await supabase.from("analysis_history").insert({
+    const { error } = await supabase.from("analysis_history" as any).insert({
       video_name: videoName,
       motion_type: result.motionType,
       confidence: result.confidence,
@@ -67,7 +67,7 @@ export function useAnalysisHistory() {
   }, [fetchHistory]);
 
   const deleteItem = useCallback(async (id: string) => {
-    await supabase.from("analysis_history").delete().eq("id", id);
+    await supabase.from("analysis_history" as any).delete().eq("id", id);
     setHistory((prev) => prev.filter((h) => h.id !== id));
   }, []);
 
