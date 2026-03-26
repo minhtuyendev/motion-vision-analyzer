@@ -37,14 +37,20 @@ export function useMotionAnalysis() {
         positions: Array<{ x: number; y: number }>;
         parameters: Record<string, number>;
         description: string;
+        analyzedTimestamps?: number[];
       };
 
+      // Use analyzed timestamps if available (subset sent to AI)
+      const usedTimestamps = aiResult.analyzedTimestamps || timestamps;
+
+      // AI returns screen coords (y: 0=top, 1=bottom)
+      // Convert to physics coords (y: 0=bottom, 1=top) for comparison with theory
       const trackingPoints: TrackingPoint[] = aiResult.positions.map((pos, i) => {
-        const t = timestamps[i] || 0;
+        const t = usedTimestamps[i] || 0;
         return {
           frameIndex: i,
           timestamp: t,
-          position: { x: pos.x, y: pos.y },
+          position: { x: pos.x, y: 1 - pos.y }, // flip y for physics convention
         };
       });
 
@@ -70,7 +76,10 @@ export function useMotionAnalysis() {
       setProgress(85);
       setStep("comparing");
 
-      const theoreticalPoints = generateTheoretical(aiResult.motionType, aiResult.parameters, timestamps);
+      // Convert AI parameters to physics convention if needed
+      const physicsParams = convertParamsToPhysics(aiResult.motionType, aiResult.parameters);
+
+      const theoreticalPoints = generateTheoretical(aiResult.motionType, physicsParams, usedTimestamps);
       const errorPercent = calculateError(trackingPoints, theoreticalPoints);
 
       setProgress(100);
@@ -80,7 +89,7 @@ export function useMotionAnalysis() {
         motionType: aiResult.motionType,
         confidence: aiResult.confidence,
         trackingPoints,
-        parameters: aiResult.parameters,
+        parameters: physicsParams,
         aiDescription: aiResult.description,
         theoreticalPoints,
         errorPercent,
@@ -111,4 +120,35 @@ export function useMotionAnalysis() {
   }, []);
 
   return { step, progress, result, error, analyze, reset, setResultDirect };
+}
+
+/**
+ * Convert AI-provided parameters (which may be in screen coords) to physics convention.
+ * Physics: y increases upward, so y0 near top of screen → y0 near 1 in physics.
+ */
+function convertParamsToPhysics(motionType: MotionType, params: Record<string, number>): Record<string, number> {
+  const p = { ...params };
+
+  // Flip y-axis positions from screen to physics
+  if (p.y0 !== undefined) {
+    p.y0 = 1 - p.y0;
+  }
+  if (p.cy !== undefined) {
+    p.cy = 1 - p.cy;
+  }
+
+  // For free_fall / projectile, vy should be negative (downward in physics = positive screen y)
+  // The AI might give vy in screen coords, so flip it
+  if (p.vy !== undefined) {
+    p.vy = -p.vy;
+  }
+  if (p.vy0 !== undefined) {
+    p.vy0 = -p.vy0;
+  }
+
+  // For free_fall and projectile, the direction of gravity in physics formulas
+  // is already handled (g is positive, formula subtracts ½gt²)
+  // So we don't need to flip g
+
+  return p;
 }
