@@ -23,7 +23,7 @@ export function useAnalysisHistory() {
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
-      .from("analysis_history")
+      .from("analysis_history" as any)
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
