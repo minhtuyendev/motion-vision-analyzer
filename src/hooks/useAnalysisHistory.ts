@@ -67,7 +67,7 @@ export function useAnalysisHistory() {
   }, [fetchHistory]);
 
   const deleteItem = useCallback(async (id: string) => {
-    await supabase.from("analysis_history").delete().eq("id", id);
+    await supabase.from("analysis_history" as any).delete().eq("id", id);
     setHistory((prev) => prev.filter((h) => h.id !== id));
   }, []);
 
