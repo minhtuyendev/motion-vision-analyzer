@@ -22,51 +22,73 @@ export function useVideoProcessor() {
     roi?: { x: number; y: number; w: number; h: number }
   ): Promise<FrameData[]> => {
     setExtracting(true);
-    const dur = video.duration;
-    setDuration(dur);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d")!;
+    try {
+      const dur = video.duration;
+      setDuration(dur);
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
 
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
 
-    const cropX = roi ? Math.round(roi.x * vw) : 0;
-    const cropY = roi ? Math.round(roi.y * vh) : 0;
-    const cropW = roi ? Math.round(roi.w * vw) : vw;
-    const cropH = roi ? Math.round(roi.h * vh) : vh;
+      const cropX = roi ? Math.round(roi.x * vw) : 0;
+      const cropY = roi ? Math.round(roi.y * vh) : 0;
+      const cropW = roi ? Math.round(roi.w * vw) : vw;
+      const cropH = roi ? Math.round(roi.h * vh) : vh;
 
-    canvas.width = Math.min(cropW, 640);
-    canvas.height = Math.round((canvas.width / cropW) * cropH);
+      canvas.width = Math.min(cropW, 640);
+      canvas.height = Math.round((canvas.width / cropW) * cropH);
 
-    const extracted: FrameData[] = [];
-    const interval = dur / (numFrames + 1);
+      const extracted: FrameData[] = [];
+      const interval = dur / (numFrames + 1);
 
-    for (let i = 1; i <= numFrames; i++) {
-      const t = interval * i;
-      await seekTo(video, t);
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-      extracted.push({
-        frameIndex: i - 1,
-        timestamp: t,
-        imageDataUrl: canvas.toDataURL("image/jpeg", 0.7),
-      });
+      for (let i = 1; i <= numFrames; i++) {
+        const t = Math.min(interval * i, dur - 0.05);
+        await seekTo(video, t);
+        // Small delay to ensure frame is rendered
+        await new Promise(r => setTimeout(r, 50));
+        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+        extracted.push({
+          frameIndex: i - 1,
+          timestamp: t,
+          imageDataUrl: canvas.toDataURL("image/jpeg", 0.7),
+        });
+      }
+
+      setFrames(extracted);
+      return extracted;
+    } finally {
+      setExtracting(false);
     }
-
-    setFrames(extracted);
-    setExtracting(false);
-    return extracted;
   }, []);
 
   return { videoUrl, videoFile, frames, extracting, duration, loadVideo, extractFrames, videoRef };
 }
 
 function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
-  return new Promise((resolve) => {
-    video.currentTime = time;
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      video.removeEventListener("seeked", handler);
+      // Resolve anyway to avoid hanging - frame may be slightly off
+      resolve();
+    }, 3000);
+
     const handler = () => {
+      clearTimeout(timeout);
       video.removeEventListener("seeked", handler);
       resolve();
     };
+
     video.addEventListener("seeked", handler);
+
+    // If already at the right time, seeked won't fire
+    if (Math.abs(video.currentTime - time) < 0.01) {
+      clearTimeout(timeout);
+      video.removeEventListener("seeked", handler);
+      resolve();
+      return;
+    }
+
+    video.currentTime = time;
   });
 }
