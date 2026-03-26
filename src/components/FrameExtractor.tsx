@@ -60,7 +60,7 @@ export function FrameExtractor({
             value={[numFrames]}
             onValueChange={([v]) => setNumFrames(v)}
             min={5}
-            max={60}
+            max={120}
             step={1}
           />
         </div>
