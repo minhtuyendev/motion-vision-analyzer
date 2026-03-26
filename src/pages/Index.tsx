@@ -1,16 +1,158 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/AppHeader";
+import { VideoUploader } from "@/components/VideoUploader";
+import { FrameExtractor } from "@/components/FrameExtractor";
+import { AnalysisProgress } from "@/components/AnalysisProgress";
+import { TrajectoryCanvas } from "@/components/TrajectoryCanvas";
+import { ComparisonCharts } from "@/components/ComparisonCharts";
+import { ResultsSummary } from "@/components/ResultsSummary";
+import { useVideoProcessor } from "@/hooks/useVideoProcessor";
+import { useMotionAnalysis } from "@/hooks/useMotionAnalysis";
+import { Brain, RotateCcw } from "lucide-react";
+import type { FrameData } from "@/types/analysis";
+import { toast } from "sonner";
 
-// IMPORTANT: Fully REPLACE this with your own code
-const PlaceholderIndex = () => {
-  // PLACEHOLDER: Replace this entire return statement with the user's app.
-  // The inline background color is intentionally not part of the design system.
+const Index = () => {
+  const { videoUrl, loadVideo, frames, extracting, duration, extractFrames } = useVideoProcessor();
+  const { step, progress, result, error, analyze, reset } = useMotionAnalysis();
+  const [extractedFrames, setExtractedFrames] = useState<FrameData[]>([]);
+
+  const handleVideoLoaded = useCallback((file: File) => {
+    loadVideo(file);
+    reset();
+    setExtractedFrames([]);
+  }, [loadVideo, reset]);
+
+  const handleClear = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  const handleFramesExtracted = useCallback((f: FrameData[]) => {
+    setExtractedFrames(f);
+    toast.success(`Đã trích xuất ${f.length} frame thành công!`);
+  }, []);
+
+  const handleAnalyze = useCallback(async () => {
+    if (extractedFrames.length === 0) {
+      toast.error("Vui lòng trích xuất frame trước khi phân tích");
+      return;
+    }
+    try {
+      await analyze(extractedFrames, duration);
+      toast.success("Phân tích hoàn tất!");
+    } catch {
+      toast.error("Lỗi trong quá trình phân tích. Vui lòng thử lại.");
+    }
+  }, [extractedFrames, duration, analyze]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center" style={{ backgroundColor: '#fcfbf8' }}>
-      <img data-lovable-blank-page-placeholder="REMOVE_THIS" src="/placeholder.svg" alt="Your app will live here!" />
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+
+      <main className="container mx-auto px-4 py-6 space-y-6 max-w-5xl">
+        {/* Hero section */}
+        <div className="text-center space-y-2 py-4">
+          <h2 className="text-2xl md:text-3xl font-bold">
+            Ứng dụng <span className="text-gradient">AI Thị giác Máy tính</span>
+          </h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm">
+            Phân tích các loại chuyển động cơ học từ video thực nghiệm sử dụng trí tuệ nhân tạo.
+            Upload video → Trích xuất frame → AI phân tích → Kết quả chi tiết.
+          </p>
+        </div>
+
+        {/* Step 1: Upload */}
+        <section>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            Bước 1 · Upload Video
+          </h3>
+          <VideoUploader
+            onVideoLoaded={handleVideoLoaded}
+            videoUrl={videoUrl}
+            onClear={handleClear}
+          />
+        </section>
+
+        {/* Step 2: Extract */}
+        {videoUrl && (
+          <section>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Bước 2 · Trích xuất Frame
+            </h3>
+            <FrameExtractor
+              videoUrl={videoUrl}
+              onFramesExtracted={handleFramesExtracted}
+              extracting={extracting}
+              onExtract={extractFrames}
+              frames={extractedFrames}
+            />
+          </section>
+        )}
+
+        {/* Step 3: Analyze */}
+        {extractedFrames.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Bước 3 · Phân tích AI
+            </h3>
+            <div className="space-y-4">
+              {step === "idle" && (
+                <Button
+                  onClick={handleAnalyze}
+                  size="lg"
+                  className="w-full gradient-primary text-primary-foreground text-base h-12"
+                >
+                  <Brain className="w-5 h-5" />
+                  Bắt đầu phân tích bằng AI
+                </Button>
+              )}
+
+              {step !== "idle" && (
+                <AnalysisProgress step={step} progress={progress} error={error} />
+              )}
+
+              {step === "error" && (
+                <Button variant="outline" onClick={reset} className="w-full">
+                  <RotateCcw className="w-4 h-4" />
+                  Thử lại
+                </Button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Step 4: Results */}
+        {result && (
+          <section className="space-y-6">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Kết quả phân tích
+            </h3>
+
+            <ResultsSummary result={result} />
+
+            <TrajectoryCanvas
+              trackingPoints={result.trackingPoints}
+              theoreticalPoints={result.theoreticalPoints}
+            />
+
+            {result.theoreticalPoints && (
+              <ComparisonCharts
+                experimental={result.trackingPoints}
+                theoretical={result.theoreticalPoints}
+              />
+            )}
+          </section>
+        )}
+      </main>
+
+      <footer className="border-t border-border py-6 mt-12">
+        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
+          Nghiên cứu: Ứng dụng AI thị giác máy tính trong phân tích chuyển động cơ học
+        </div>
+      </footer>
     </div>
   );
 };
-
-const Index = PlaceholderIndex;
 
 export default Index;
