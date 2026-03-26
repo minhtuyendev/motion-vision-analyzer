@@ -51,7 +51,7 @@ export function useAnalysisHistory() {
     videoName: string,
     thumbnail?: string
   ) => {
-    const { error } = await supabase.from("analysis_history").insert({
+    const { error } = await supabase.from("analysis_history" as any).insert({
       video_name: videoName,
       motion_type: result.motionType,
       confidence: result.confidence,
