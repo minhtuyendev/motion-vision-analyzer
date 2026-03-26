@@ -23,8 +23,8 @@ serve(async (req) => {
       throw new Error("No frames provided");
     }
 
-    // Send up to 20 frames evenly sampled
-    const maxFrames = 20;
+    // Send up to 120 frames evenly sampled
+    const maxFrames = 120;
     let selectedFrames: string[] = frames;
     let selectedTimestamps: number[] = timestamps;
     if (frames.length > maxFrames) {
