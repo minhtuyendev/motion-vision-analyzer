@@ -66,12 +66,29 @@ export function useVideoProcessor() {
 }
 
 function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
-  return new Promise((resolve) => {
-    video.currentTime = time;
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      video.removeEventListener("seeked", handler);
+      // Resolve anyway to avoid hanging - frame may be slightly off
+      resolve();
+    }, 3000);
+
     const handler = () => {
+      clearTimeout(timeout);
       video.removeEventListener("seeked", handler);
       resolve();
     };
+
     video.addEventListener("seeked", handler);
+
+    // If already at the right time, seeked won't fire
+    if (Math.abs(video.currentTime - time) < 0.01) {
+      clearTimeout(timeout);
+      video.removeEventListener("seeked", handler);
+      resolve();
+      return;
+    }
+
+    video.currentTime = time;
   });
 }
