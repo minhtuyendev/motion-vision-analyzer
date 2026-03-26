@@ -103,5 +103,12 @@ export function useMotionAnalysis() {
     setError(null);
   }, []);
 
-  return { step, progress, result, error, analyze, reset };
+  const setResultDirect = useCallback((r: AnalysisResult) => {
+    setResult(r);
+    setStep("done");
+    setProgress(100);
+    setError(null);
+  }, []);
+
+  return { step, progress, result, error, analyze, reset, setResultDirect };
 }

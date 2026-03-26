@@ -7,15 +7,18 @@ import { AnalysisProgress } from "@/components/AnalysisProgress";
 import { TrajectoryCanvas } from "@/components/TrajectoryCanvas";
 import { ComparisonCharts } from "@/components/ComparisonCharts";
 import { ResultsSummary } from "@/components/ResultsSummary";
+import { AnalysisHistory } from "@/components/AnalysisHistory";
 import { useVideoProcessor } from "@/hooks/useVideoProcessor";
 import { useMotionAnalysis } from "@/hooks/useMotionAnalysis";
+import { useAnalysisHistory } from "@/hooks/useAnalysisHistory";
 import { Brain, RotateCcw } from "lucide-react";
-import type { FrameData } from "@/types/analysis";
+import type { FrameData, AnalysisResult } from "@/types/analysis";
 import { toast } from "sonner";
 
 const Index = () => {
-  const { videoUrl, loadVideo, frames, extracting, duration, extractFrames } = useVideoProcessor();
-  const { step, progress, result, error, analyze, reset } = useMotionAnalysis();
+  const { videoUrl, videoFile, loadVideo, frames, extracting, duration, extractFrames } = useVideoProcessor();
+  const { step, progress, result, error, analyze, reset, setResultDirect } = useMotionAnalysis();
+  const { history, loading: historyLoading, saveResult, deleteItem, toAnalysisResult } = useAnalysisHistory();
   const [extractedFrames, setExtractedFrames] = useState<FrameData[]>([]);
 
   const handleVideoLoaded = useCallback((file: File) => {
@@ -39,12 +42,32 @@ const Index = () => {
       return;
     }
     try {
-      await analyze(extractedFrames, duration);
+      const analysisResult = await analyze(extractedFrames, duration);
       toast.success("Phân tích hoàn tất!");
+      // Save to history
+      if (analysisResult) {
+        const thumbnail = extractedFrames[0]?.imageDataUrl;
+        const name = videoFile?.name ?? "Video";
+        await saveResult(analysisResult, name, thumbnail);
+      }
     } catch {
       toast.error("Lỗi trong quá trình phân tích. Vui lòng thử lại.");
     }
-  }, [extractedFrames, duration, analyze]);
+  }, [extractedFrames, duration, analyze, videoFile, saveResult]);
+
+  const handleViewHistory = useCallback((item: Parameters<typeof toAnalysisResult>[0]) => {
+    const res = toAnalysisResult(item);
+    setResultDirect(res);
+    toast.info(`Đang xem lại: ${item.video_name}`);
+  }, [toAnalysisResult, setResultDirect]);
+
+  const handleDeleteHistory = useCallback(async (id: string) => {
+    await deleteItem(id);
+    toast.success("Đã xóa");
+  }, [deleteItem]);
+
+  // Use result from hook or from history view
+  const displayResult = result;
 
   return (
     <div className="min-h-screen bg-background">
@@ -61,6 +84,16 @@ const Index = () => {
             Upload video → Trích xuất frame → AI phân tích → Kết quả chi tiết.
           </p>
         </div>
+
+        {/* History */}
+        <section>
+          <AnalysisHistory
+            history={history}
+            loading={historyLoading}
+            onView={handleViewHistory}
+            onDelete={handleDeleteHistory}
+          />
+        </section>
 
         {/* Step 1: Upload */}
         <section>
@@ -123,23 +156,23 @@ const Index = () => {
         )}
 
         {/* Step 4: Results */}
-        {result && (
+        {displayResult && (
           <section className="space-y-6">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Kết quả phân tích
             </h3>
 
-            <ResultsSummary result={result} />
+            <ResultsSummary result={displayResult} />
 
             <TrajectoryCanvas
-              trackingPoints={result.trackingPoints}
-              theoreticalPoints={result.theoreticalPoints}
+              trackingPoints={displayResult.trackingPoints}
+              theoreticalPoints={displayResult.theoreticalPoints}
             />
 
-            {result.theoreticalPoints && (
+            {displayResult.theoreticalPoints && (
               <ComparisonCharts
-                experimental={result.trackingPoints}
-                theoretical={result.theoreticalPoints}
+                experimental={displayResult.trackingPoints}
+                theoretical={displayResult.theoreticalPoints}
               />
             )}
           </section>
