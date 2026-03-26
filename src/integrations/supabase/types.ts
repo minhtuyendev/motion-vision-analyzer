@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analysis_history: {
+        Row: {
+          ai_description: string
+          confidence: number
+          created_at: string
+          error_percent: number | null
+          id: string
+          motion_type: string
+          parameters: Json
+          theoretical_points: Json | null
+          thumbnail: string | null
+          tracking_points: Json
+          video_name: string
+        }
+        Insert: {
+          ai_description?: string
+          confidence?: number
+          created_at?: string
+          error_percent?: number | null
+          id?: string
+          motion_type: string
+          parameters?: Json
+          theoretical_points?: Json | null
+          thumbnail?: string | null
+          tracking_points?: Json
+          video_name?: string
+        }
+        Update: {
+          ai_description?: string
+          confidence?: number
+          created_at?: string
+          error_percent?: number | null
+          id?: string
+          motion_type?: string
+          parameters?: Json
+          theoretical_points?: Json | null
+          thumbnail?: string | null
+          tracking_points?: Json
+          video_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
