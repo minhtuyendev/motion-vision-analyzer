@@ -18,7 +18,7 @@ export function useVideoProcessor() {
 
   const extractFrames = useCallback(async (
     video: HTMLVideoElement,
-    numFrames = 15,
+    numFrames = 30,
     roi?: { x: number; y: number; w: number; h: number }
   ): Promise<FrameData[]> => {
     setExtracting(true);
@@ -41,18 +41,36 @@ export function useVideoProcessor() {
 
       const extracted: FrameData[] = [];
       const interval = dur / (numFrames + 1);
+      const maxRetries = 3;
 
       for (let i = 1; i <= numFrames; i++) {
         const t = Math.min(interval * i, dur - 0.05);
-        await seekTo(video, t);
-        // Small delay to ensure frame is rendered
-        await new Promise(r => setTimeout(r, 50));
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-        extracted.push({
-          frameIndex: i - 1,
-          timestamp: t,
-          imageDataUrl: canvas.toDataURL("image/jpeg", 0.7),
-        });
+        let success = false;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            await seekTo(video, t);
+            await new Promise(r => setTimeout(r, 80));
+
+            if (video.readyState >= 2) {
+              ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+              extracted.push({
+                frameIndex: i - 1,
+                timestamp: t,
+                imageDataUrl: canvas.toDataURL("image/jpeg", 0.75),
+              });
+              success = true;
+              break;
+            }
+          } catch {
+            console.warn(`Frame ${i} seek attempt ${attempt + 1} failed`);
+            await new Promise(r => setTimeout(r, 150));
+          }
+        }
+
+        if (!success) {
+          console.warn(`Skipping frame ${i} at ${t.toFixed(2)}s after ${maxRetries} attempts`);
+        }
       }
 
       setFrames(extracted);
