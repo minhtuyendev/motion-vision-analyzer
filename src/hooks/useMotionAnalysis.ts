@@ -76,10 +76,8 @@ export function useMotionAnalysis() {
       setProgress(85);
       setStep("comparing");
 
-      // Convert AI parameters to physics convention if needed
-      const physicsParams = convertParamsToPhysics(aiResult.motionType, aiResult.parameters);
-
-      const theoreticalPoints = generateTheoretical(aiResult.motionType, physicsParams, usedTimestamps);
+      // Generate theoretical curve by fitting to experimental data
+      const theoreticalPoints = generateTheoretical(aiResult.motionType, aiResult.parameters, usedTimestamps, trackingPoints);
       const errorPercent = calculateError(trackingPoints, theoreticalPoints);
 
       setProgress(100);
@@ -89,7 +87,7 @@ export function useMotionAnalysis() {
         motionType: aiResult.motionType,
         confidence: aiResult.confidence,
         trackingPoints,
-        parameters: physicsParams,
+        parameters: aiResult.parameters,
         aiDescription: aiResult.description,
         theoreticalPoints,
         errorPercent,
@@ -122,33 +120,3 @@ export function useMotionAnalysis() {
   return { step, progress, result, error, analyze, reset, setResultDirect };
 }
 
-/**
- * Convert AI-provided parameters (which may be in screen coords) to physics convention.
- * Physics: y increases upward, so y0 near top of screen → y0 near 1 in physics.
- */
-function convertParamsToPhysics(motionType: MotionType, params: Record<string, number>): Record<string, number> {
-  const p = { ...params };
-
-  // Flip y-axis positions from screen to physics
-  if (p.y0 !== undefined) {
-    p.y0 = 1 - p.y0;
-  }
-  if (p.cy !== undefined) {
-    p.cy = 1 - p.cy;
-  }
-
-  // For free_fall / projectile, vy should be negative (downward in physics = positive screen y)
-  // The AI might give vy in screen coords, so flip it
-  if (p.vy !== undefined) {
-    p.vy = -p.vy;
-  }
-  if (p.vy0 !== undefined) {
-    p.vy0 = -p.vy0;
-  }
-
-  // For free_fall and projectile, the direction of gravity in physics formulas
-  // is already handled (g is positive, formula subtracts ½gt²)
-  // So we don't need to flip g
-
-  return p;
-}
