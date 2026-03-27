@@ -120,33 +120,3 @@ export function useMotionAnalysis() {
   return { step, progress, result, error, analyze, reset, setResultDirect };
 }
 
-/**
- * Convert AI-provided parameters (which may be in screen coords) to physics convention.
- * Physics: y increases upward, so y0 near top of screen → y0 near 1 in physics.
- */
-function convertParamsToPhysics(motionType: MotionType, params: Record<string, number>): Record<string, number> {
-  const p = { ...params };
-
-  // Flip y-axis positions from screen to physics
-  if (p.y0 !== undefined) {
-    p.y0 = 1 - p.y0;
-  }
-  if (p.cy !== undefined) {
-    p.cy = 1 - p.cy;
-  }
-
-  // For free_fall / projectile, vy should be negative (downward in physics = positive screen y)
-  // The AI might give vy in screen coords, so flip it
-  if (p.vy !== undefined) {
-    p.vy = -p.vy;
-  }
-  if (p.vy0 !== undefined) {
-    p.vy0 = -p.vy0;
-  }
-
-  // For free_fall and projectile, the direction of gravity in physics formulas
-  // is already handled (g is positive, formula subtracts ½gt²)
-  // So we don't need to flip g
-
-  return p;
-}
