@@ -87,7 +87,7 @@ export function useMotionAnalysis() {
         motionType: aiResult.motionType,
         confidence: aiResult.confidence,
         trackingPoints,
-        parameters: physicsParams,
+        parameters: aiResult.parameters,
         aiDescription: aiResult.description,
         theoreticalPoints,
         errorPercent,
