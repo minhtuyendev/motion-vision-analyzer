@@ -1,54 +1,35 @@
 
 
-# Ứng dụng AI Thị giác Máy tính - Phân tích Chuyển động Cơ học
+## Hỗ trợ Google AI Studio API Key
 
-## Tổng quan
-Ứng dụng web cho phép upload video thực nghiệm, sử dụng AI (Lovable AI với Gemini vision) để phân tích các loại chuyển động cơ học, tracking quỹ đạo và so sánh với lý thuyết vật lý.
+### Vấn đề hiện tại
+Edge function `analyze-motion` đang dùng Lovable AI Gateway (`ai.gateway.lovable.dev`) với `LOVABLE_API_KEY`. Bạn muốn dùng API key riêng từ Google AI Studio để gọi Gemini trực tiếp, tránh phụ thuộc vào credits của Lovable.
 
-## Trang chính - Dashboard
-- Header với tên nghiên cứu, logo
-- Navigation: Upload Video | Phân tích | Kết quả | Hướng dẫn
+### Kế hoạch
 
-## Tính năng 1: Upload & Preview Video
-- Khu vực kéo thả / chọn file video (mp4, webm)
-- Preview video với thanh điều khiển
-- Trích xuất frame tự động từ video (sử dụng Canvas API trên trình duyệt)
-- Cho phép chọn vùng quan tâm (ROI) trên video
+**1. Thêm secret `GOOGLE_AI_STUDIO_KEY`**
+- Yêu cầu bạn nhập API key từ Google AI Studio
 
-## Tính năng 2: Phân tích AI
-- Gửi các frame trích xuất lên Lovable AI (Gemini vision) qua Edge Function
-- AI phân tích và nhận diện:
-  - Loại chuyển động (thẳng đều, biến đổi đều, tròn, dao động, projectile...)
-  - Vị trí vật thể qua từng frame
-  - Ước tính vận tốc, gia tốc
-- Hiển thị tiến trình phân tích real-time
+**2. Sửa edge function `analyze-motion/index.ts`**
+- Thêm logic ưu tiên: nếu có `GOOGLE_AI_STUDIO_KEY` → gọi thẳng Google Generative AI API (`generativelanguage.googleapis.com`), nếu không → fallback về Lovable AI Gateway như cũ
+- Endpoint Google: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${API_KEY}`
+- Chuyển đổi format request từ OpenAI-compatible sang Google Generative AI format (khác cấu trúc `messages` → `contents`, `tools` → `tools` với format Google)
+- Giữ nguyên prompt, tool calling schema, và xử lý response
 
-## Tính năng 3: Tracking Quỹ đạo
-- Vẽ overlay quỹ đạo lên video gốc (Canvas)
-- Đánh dấu vị trí vật theo thời gian
-- Animation replay quỹ đạo
-- Xuất hình ảnh quỹ đạo
+**3. Chi tiết kỹ thuật**
 
-## Tính năng 4: So sánh Lý thuyết vs Thực nghiệm
-- Dựa trên loại chuyển động AI nhận diện, áp dụng công thức vật lý tương ứng
-- Đồ thị so sánh: đường lý thuyết (công thức) vs dữ liệu thực nghiệm (AI)
-- Tính sai số phần trăm
-- Bảng thông số: vận tốc ban đầu, gia tốc, chu kỳ...
+```text
+Request flow:
+  Client → Edge Function → Check GOOGLE_AI_STUDIO_KEY
+                            ├─ Có → generativelanguage.googleapis.com (direct)
+                            └─ Không → ai.gateway.lovable.dev (Lovable AI)
+```
 
-## Tính năng 5: Báo cáo kết quả
-- Tổng hợp kết quả phân tích
-- Đồ thị x-t, v-t (từ dữ liệu AI)
-- Bảng số liệu chi tiết
-- Kết luận AI về loại chuyển động
+- Google API format khác OpenAI:
+  - `messages` → `contents` (với `parts` array)
+  - `tool_choice` → `toolConfig.functionCallingConfig`
+  - Response: `candidates[0].content.parts[0].functionCall` thay vì `choices[0].message.tool_calls[0]`
+- Xử lý lỗi 429/402 tương tự cho cả hai API
 
-## Công nghệ
-- Frontend: React + Tailwind + Recharts (đồ thị) + Canvas API (tracking overlay)
-- Backend: Supabase Edge Function gọi Lovable AI (Gemini 2.5 Pro - hỗ trợ vision)
-- Không cần database, xử lý hoàn toàn client-side + AI
-
-## Thiết kế
-- Giao diện khoa học, chuyên nghiệp
-- Tone màu xanh dương đậm + trắng
-- Font rõ ràng, dễ đọc
-- Responsive
+**4. Không thay đổi frontend** — logic chọn API hoàn toàn ở backend.
 
