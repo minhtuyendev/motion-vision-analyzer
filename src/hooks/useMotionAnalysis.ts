@@ -76,10 +76,8 @@ export function useMotionAnalysis() {
       setProgress(85);
       setStep("comparing");
 
-      // Convert AI parameters to physics convention if needed
-      const physicsParams = convertParamsToPhysics(aiResult.motionType, aiResult.parameters);
-
-      const theoreticalPoints = generateTheoretical(aiResult.motionType, physicsParams, usedTimestamps);
+      // Generate theoretical curve by fitting to experimental data
+      const theoreticalPoints = generateTheoretical(aiResult.motionType, aiResult.parameters, usedTimestamps, trackingPoints);
       const errorPercent = calculateError(trackingPoints, theoreticalPoints);
 
       setProgress(100);
