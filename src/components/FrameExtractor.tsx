@@ -30,8 +30,12 @@ export function FrameExtractor({
 
   const handleExtract = async () => {
     if (!videoRef.current || !videoReady) return;
-    const extracted = await onExtract(videoRef.current, numFrames);
-    onFramesExtracted(extracted);
+    try {
+      const extracted = await onExtract(videoRef.current, numFrames);
+      onFramesExtracted(extracted);
+    } catch (err) {
+      console.error("Frame extraction failed:", err);
+    }
   };
 
   return (
